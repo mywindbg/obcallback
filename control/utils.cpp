@@ -121,9 +121,17 @@ Exit:
 
 
 
-//
-// TcInitializeGlobals
-//
+/**
+ * @brief TcInitializeGlobals
+ *
+ *      1) Check if running as Wow64Process
+ *      1.1) If yes, Disable FS redirection to make sure 32 bit test process will copy our 64 bit driver,
+ *           to system32\drivers, rather than syswow64\drivers
+ *      
+ *      2) Open Service Control Manager in TcScmHandle, if not opened already
+ *      3) Construct driver path in TcDriverPath
+ * @return BOOL 
+ */
 
 BOOL TcInitializeGlobals()
 {
@@ -131,79 +139,51 @@ BOOL TcInitializeGlobals()
     BOOL ReturnValue = FALSE;
 
 #if !defined (_WIN64)
-
     BOOL Result = FALSE;
     BOOL Wow64Process = FALSE;
     PVOID OldWowRedirectionValue = NULL;
 
-    Result = IsWow64Process (
-        GetCurrentProcess(),
-        &Wow64Process
-    );
-
-    if (Result == FALSE) 
-    {
+    // Check IsWow64Process
+    Result = IsWow64Process ( GetCurrentProcess(), &Wow64Process );
+    if (Result == FALSE) {
         LOG_INFO_FAILURE (L"IsWow64Process failed, last error 0x%x", GetLastError());
         goto Exit;
     }
 
-    if (Wow64Process == TRUE)
-    {
-        //
-        // Disable FS redirection to make sure a 32 bit test process will
-        // copy our (64 bit) driver to system32\drivers rather than syswow64\drivers.
-        //
-
+    // If YES, Disable FS redirection to make sure a 32 bit test process will
+    // copy our (64 bit) driver to system32\drivers, rather than syswow64\drivers.
+    if (Wow64Process == TRUE) {
         Result = Wow64DisableWow64FsRedirection (&OldWowRedirectionValue);
-
-        if (Result == FALSE) 
-        {
+        if (Result == FALSE) {
             LOG_INFO_FAILURE (L"Wow64DisableWow64FsRedirection failed, last error 0x%x", GetLastError());
             goto Exit;
         }
     }
-
 #endif
 
-    //
     // Open the service control manager if not already open
-    //
-
     if (TcScmHandle == NULL) {
-        TcScmHandle = OpenSCManager (
-            NULL,
-            NULL,
-            SC_MANAGER_ALL_ACCESS
-        );
-    
-        if (TcScmHandle == NULL)
-        {
+        TcScmHandle = OpenSCManager ( NULL, NULL, SC_MANAGER_ALL_ACCESS );
+        if (TcScmHandle == NULL) {
             LOG_INFO_FAILURE (L"OpenSCManager failed, last error 0x%x", GetLastError());
             goto Exit;
         }
     }
-    //
+
     // Construct driver path.
-    //
-
     UINT Size = GetSystemDirectory (SysDir, ARRAYSIZE(SysDir));
-
-    if (Size == 0)
-    {
+    if (Size == 0) {
         LOG_INFO_FAILURE (L"GetSystemDirectory failed, last error 0x%x", GetLastError());
         goto Exit;
     }
 
     HRESULT hr = StringCchPrintf (
-        TcDriverPath,
-        ARRAYSIZE(TcDriverPath),
+        TcDriverPath, ARRAYSIZE(TcDriverPath),
         L"%ls\\drivers\\%ls.sys",
-        SysDir,
-        TD_DRIVER_NAME
+        SysDir, TD_DRIVER_NAME
     );
 
-    if (FAILED (hr))
-    {
+    if (FAILED (hr)) {
         LOG_INFO_FAILURE (L"StringCchPrintf failed, hr 0x%08x", hr);
         goto Exit;
     }
@@ -215,9 +195,13 @@ Exit:
 }
 
 
-//
-// TcUnInitialize
-//
+/**
+ * @brief TcCleanupSCM
+ *      
+ *      1) CloseServiceHandle(), if TcScmHandle exists.
+ * 
+ * @return BOOL 
+ */
 
 BOOL TcCleanupSCM()
 {
@@ -229,9 +213,15 @@ BOOL TcCleanupSCM()
     return TRUE;
 }
 
-//
-// TcLoadDriver
-//
+/**
+ * @brief TcLoadDriver
+ *      
+ *      1) TcUnloadDriver() - Just to unload if driver exists from previous installation
+ *      2) Copy the driver (*.sys) file to corresponding drivers fodler in the system path
+ *      3) TcCreateService()
+ *      4) TcStartService()
+ * @return BOOL 
+ */
 
 BOOL TcLoadDriver()
 {
@@ -244,7 +234,6 @@ BOOL TcLoadDriver()
     //
 
     ReturnValue = TcUnloadDriver();
-
     if (ReturnValue != TRUE)
     {
         LOG_INFO_FAILURE (L"TcUnloadDriver failed");
@@ -302,9 +291,14 @@ Exit:
 
 
 
-//
-// TcUnloadDriver
-//
+/**
+ * @brief TcUnloadDriver
+ *      
+ *      1) Stop Service
+ *      2) Delete Service
+ * 
+ * @return BOOL 
+ */
 
 BOOL TcUnloadDriver()
 {
@@ -346,14 +340,16 @@ Exit:
     return ReturnValue;
 }
 
-//
-// TcGetServiceState
-//
 
-BOOL TcGetServiceState (
-    _In_ SC_HANDLE ServiceHandle,
-    _Out_ DWORD* State
-)
+/**
+ * @brief TcGetServiceState
+ *      
+ *      1) Get service status using QueryServiceStatusEx() API
+ *      2) Return service state from service status
+ * @return BOOL 
+ */
+
+BOOL TcGetServiceState ( _In_ SC_HANDLE ServiceHandle, _Out_ DWORD* State )
 {
     SERVICE_STATUS_PROCESS ServiceStatus;
     DWORD BytesNeeded;
@@ -379,14 +375,17 @@ BOOL TcGetServiceState (
     return TRUE;
 }
 
-//
-// Wait for service to enter specified state.
-//
 
-BOOL TcWaitForServiceState (
-    _In_ SC_HANDLE ServiceHandle,
-    _In_ DWORD State
-)
+/**
+ * @brief TcWaitForServiceState
+ *      
+ *      1) Go into infinite loop
+ *          1.1) Get service state state.
+ *          1.2) break when the state matches input argument
+ * @return BOOL 
+ */
+
+BOOL TcWaitForServiceState ( _In_ SC_HANDLE ServiceHandle, _In_ DWORD State )
 {
     for (;;)
     {
@@ -411,9 +410,14 @@ BOOL TcWaitForServiceState (
     return TRUE;
 }
 
-//
-// TcCreateService
-//
+
+/**
+ * @brief TcCreateService
+ *      
+ *      1) Create Service using CreateService() API, which returns ServiceHandle
+ *      2) Close the ServiceHandle
+ * @return BOOL 
+ */
 
 BOOL TcCreateService()
 {
@@ -463,9 +467,17 @@ Exit:
     return ReturnValue;
 }
 
-//
-// TcStartService
-//
+
+/**
+ * @brief TcStartService
+ *      
+ *      1) Open ServiceHandle using OpenService(), using TcScmHandle and Driver name
+ *          1.1) If service doesnt handle, return true.
+ *      2) Start the service, using StartService(), using ServiceHandle
+ *          2.1) Wait for the state of service to becon SERVICE_RUNNING, using TcWaitForServiceState()
+ *      3) Close the ServiceHandle
+ * @return BOOL 
+ */
 
 BOOL TcStartService()
 {
@@ -477,12 +489,7 @@ BOOL TcStartService()
     // and the service is already installed.
     //
 
-    SC_HANDLE ServiceHandle = OpenService (
-        TcScmHandle,
-        TD_DRIVER_NAME,
-        SERVICE_ALL_ACCESS
-    );
-
+    SC_HANDLE ServiceHandle = OpenService ( TcScmHandle, TD_DRIVER_NAME, SERVICE_ALL_ACCESS );
     if (ServiceHandle == NULL)
     {
         LOG_INFO_FAILURE (L"TcStartService: OpenService failed, last error 0x%x", GetLastError());
@@ -520,9 +527,16 @@ Exit:
 }
 
 
-//
-// TcStopService
-//
+/**
+ * @brief TcStopService
+ *      
+ *      1) Open ServiceHandle using OpenService(), using TcScmHandle and Driver name
+ *          1.1) If service doesnt handle, return true.
+ *      2) Stop the service, using ControlService(), using ServiceHandle
+ *          2.1) Wait for the state of service to becon SERVICE_STOPPED, using TcWaitForServiceState()
+ *      3) Close the ServiceHandle
+ * @return BOOL 
+ */
 
 BOOL TcStopService()
 {
@@ -534,14 +548,9 @@ BOOL TcStopService()
     // Open the service so we can stop it
     //
 
-    SC_HANDLE ServiceHandle = OpenService (
-        TcScmHandle,
-        TD_DRIVER_NAME,
-        SERVICE_ALL_ACCESS
-    );
+    SC_HANDLE ServiceHandle = OpenService ( TcScmHandle, TD_DRIVER_NAME, SERVICE_ALL_ACCESS );
 
     DWORD LastError = GetLastError();
-
     if (ServiceHandle == NULL)
     {
         if (LastError == ERROR_SERVICE_DOES_NOT_EXIST)
@@ -592,9 +601,15 @@ Exit:
     return ReturnValue;
 }
 
-//
-// TcDeleteService
-//
+/**
+ * @brief TcDeleteService
+ * 
+ *      1) Open ServiceHandle using OpenService(), using TcScmHandle and Driver name
+ *          1.1) If service doesnt handle, return true.
+ *      2) Delete the service using DeleteService() API.
+ *      3) CloseServiceHandle(ServiceHandle)
+ * @return BOOL 
+ */
 
 BOOL TcDeleteService()
 {
@@ -607,11 +622,7 @@ BOOL TcDeleteService()
     // Open the service so we can delete it
     //
 
-    SC_HANDLE ServiceHandle = OpenService (
-        TcScmHandle,
-        TD_DRIVER_NAME,
-        SERVICE_ALL_ACCESS
-    );
+    SC_HANDLE ServiceHandle = OpenService ( TcScmHandle, TD_DRIVER_NAME, SERVICE_ALL_ACCESS );
 
     DWORD LastError = GetLastError();
 
@@ -658,9 +669,15 @@ Exit:
     return ReturnValue;
 }
 
-//
-// TcOpenDevice
-//
+/**
+ * @brief TcOpenDevice
+ * 
+ *      1) If TcDeviceHandle is already present, return true
+ *      2) Else, Create device using CreateFile() API, sending TD_WIN32_DEVICE_NAME
+ *          2.1) The device is managed using global TcDeviceHandle.
+ * 
+ * @return BOOL 
+ */
 
 BOOL TcOpenDevice()
 {
@@ -699,9 +716,12 @@ Exit:
     return ReturnValue;
 }
 
-//
-// TcOpenDevice
-//
+/**
+ * @brief TcOpenDevice
+ *         1) If TcDeviceHandle is empty, return true
+ *      2) Else, close device using CloseHandle() API, sending TcDeviceHandle obtained using TcOpenDevice()
+ * @return BOOL 
+ */
 
 BOOL TcCloseDevice()
 {

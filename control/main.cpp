@@ -1,29 +1,13 @@
 /*++
 
-Module Name:
-
-    main.cpp
-
-Abstract:
-
-    Main module for for ps/Ob sample
-
-Notice:
-
-    Use this sample code at your own risk; there is no support from Microsoft for the sample code.
-    In addition, this sample code is licensed to you under the terms of the Microsoft Public License
-    (http://www.microsoft.com/opensource/licenses.mspx)
-
-    
+Module Name: main.cpp
+Abstract: Main module for for ps/Ob sample
 --*/
 
 #include "pch.h"
 #include "common.h"
 
-//
 // PrintUsage
-//
-
 void TcPrintUsage()
 {
     puts ("Usage:");
@@ -36,54 +20,43 @@ void TcPrintUsage()
     puts("     -deprotect      unprotect/unfilter");
 }
 
-//
 // wmain()
-//
-
-int _cdecl
-wmain (
-    _In_ int argc,
-    _In_reads_(argc) LPCWSTR argv[]
-)
-{
+int _cdecl wmain ( _In_ int argc, _In_reads_(argc) LPCWSTR argv[] ) {
     int ExitCode = ERROR_SUCCESS;
 
-    if (argc > 1)
-    {
-        const wchar_t * arg = argv[1];
-
-        // initialize globals and logging
-        if (!TcInitialize()) {
-            puts("Initialization failed - program exiting");
-            ExitCode = ERROR_FUNCTION_FAILED;
-            goto Exit;
-        }
-
-        if (0 == wcscmp (arg, L"-install")) {
-            TcInstallDriver();
-        } else
-        if (0 == wcscmp (arg, L"-uninstall")) {
-            TcUninstallDriver();
-        } else
-        if ((0 == wcscmp (arg, L"-?")) || (0 == wcscmp (arg, L"-h")) || (0 == wcscmp (arg, L"-help"))) {
-            TcPrintUsage();
-        } else
-        if (0 == wcscmp (arg, L"-deprotect")) {
-            TcRemoveProtection();
-        } else
-        if (0 == wcscmp (arg, L"-name")) {
-            TcProcessName (argc, argv, TDProtectName_Protect);
-        } else
-        if (0 == wcscmp (arg, L"-reject")) {
-            TcProcessName (argc, argv, TDProtectName_Reject);
-        } else	{
-			puts ("Unknown command!");
-			TcPrintUsage();
-        }
-        
+    if (argc <= 0) {
+        TcPrintUsage();
+        return ExitCode;
     }
-    else
-    {
+
+    // initialize globals and logging
+    if (!TcInitialize()) {
+        puts("Initialization failed - program exiting");
+        ExitCode = ERROR_FUNCTION_FAILED;
+        goto Exit;
+    }
+
+    const wchar_t * arg = argv[1];
+    if (0 == wcscmp (arg, L"-install")) {
+        TcInstallDriver();
+    } 
+    else if (0 == wcscmp (arg, L"-uninstall")) {
+        TcUninstallDriver();
+    } 
+    else if ((0 == wcscmp (arg, L"-?")) || (0 == wcscmp (arg, L"-h")) || (0 == wcscmp (arg, L"-help"))) {
+        TcPrintUsage();
+    } 
+    else if (0 == wcscmp (arg, L"-deprotect")) {
+        TcRemoveProtection();
+    } 
+    else if (0 == wcscmp (arg, L"-name")) {
+        TcProcessName (argc, argv, TDProtectName_Protect);
+    } 
+    else if (0 == wcscmp (arg, L"-reject")) {
+        TcProcessName (argc, argv, TDProtectName_Reject);
+    } 
+    else {
+        puts ("Unknown command!");
         TcPrintUsage();
     }
 
@@ -246,9 +219,7 @@ BOOL TcInstallDriver ()
 
     LOG_INFO(L"TcInstallDriver: Entering");
     BOOL Result = TcLoadDriver();
-
-    if (Result != TRUE)
-    {
+    if (Result != TRUE){
         LOG_ERROR (L"TcLoadDriver failed, exiting");
         bRC = FALSE;
         goto Exit;
