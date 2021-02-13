@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31005.135
 MinimumVisualStudioVersion = 12.0
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Control", "Control", "{A66A4EE4-C0A3-4557-A39B-9EBDF9EEE095}"
 EndProject
@@ -42,5 +42,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F723CC91-3218-4252-89C1-F7998292C456} = {A66A4EE4-C0A3-4557-A39B-9EBDF9EEE095}
 		{850E3104-6DE2-4FA3-8E53-4CA21A230429} = {60D4EAED-6467-440B-8BF6-E8537A962604}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {07578205-D137-405C-9C5E-CDBE360F2119}
 	EndGlobalSection
 EndGlobal
