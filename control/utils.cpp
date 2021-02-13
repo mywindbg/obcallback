@@ -255,13 +255,13 @@ BOOL TcLoadDriver()
     // Copy the driver to system32\drivers
     //
 
-    ReturnValue = CopyFile (TD_DRIVER_NAME_WITH_EXT, TcDriverPath, FALSE);
+    ReturnValue = CopyFile (TD_DRIVER_PATH, TcDriverPath, FALSE);
 
     if (ReturnValue == FALSE)
     {
         LOG_INFO_FAILURE (
             L"CopyFile(%ls, %ls) failed, last error 0x%x",
-            TD_DRIVER_NAME_WITH_EXT, TcDriverPath, GetLastError()
+            TD_DRIVER_PATH, TcDriverPath, GetLastError()
         );
 
         goto Exit;

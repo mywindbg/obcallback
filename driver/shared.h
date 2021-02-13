@@ -52,6 +52,7 @@ Abstract:
 
 #define TD_DRIVER_NAME             L"ObCallbackTest"
 #define TD_DRIVER_NAME_WITH_EXT    L"ObCallbackTest.sys"
+#define TD_DRIVER_PATH                L"\\\\vmware-host\\Shared Folders\\SharedFolder\\obcallback\\driver\\x64\\Debug\\ObCallbackTest.sys"
 
 #define TD_NT_DEVICE_NAME          L"\\Device\\ObCallbackTest"
 #define TD_DOS_DEVICES_LINK_NAME   L"\\DosDevices\\ObCallbackTest"
