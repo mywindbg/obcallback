@@ -1,37 +1,18 @@
 /*++
-
-Module Name:
-
-    tdriver.c
-
-Abstract:
-
-    Main module for the Ob and Ps sample code
-
-Notice:
-    Use this sample code at your own risk; there is no support from Microsoft for the sample code.
-    In addition, this sample code is licensed to you under the terms of the Microsoft Public License
-    (http://www.microsoft.com/opensource/licenses.mspx)
-
-
+Module Name: Main module for the Ob and Ps sample code
 --*/
 
 #include "pch.h"
 #include "tdriver.h"
 
-//
 // Process notify routines.
-//
-
 BOOLEAN TdProcessNotifyRoutineSet2 = FALSE;
 
 // allow filter the requested access
 BOOLEAN TdbProtectName = FALSE;
 BOOLEAN TdbRejectName = FALSE;
 
-//
 // Function declarations
-//
 DRIVER_INITIALIZE  DriverEntry;
 
 _Dispatch_type_(IRP_MJ_CREATE) DRIVER_DISPATCH TdDeviceCreate;
@@ -41,12 +22,7 @@ _Dispatch_type_(IRP_MJ_DEVICE_CONTROL) DRIVER_DISPATCH TdDeviceControl;
 
 DRIVER_UNLOAD   TdDeviceUnload;
 
-VOID
-TdCreateProcessNotifyRoutine2 (
-    _Inout_ PEPROCESS Process,
-    _In_ HANDLE ProcessId,
-    _In_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo
-    )
+VOID TdCreateProcessNotifyRoutine2 (_Inout_ PEPROCESS Process, _In_ HANDLE ProcessId, _In_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo)
 {
     NTSTATUS Status = STATUS_SUCCESS;
 
@@ -113,15 +89,25 @@ TdCreateProcessNotifyRoutine2 (
     }
 }
 
-//
-// DriverEntry
-//
+/**
+ * @brief DriverEntry
+ * 
+ *      1) Initialize global TdCallbacksMutex
+ *      2) Create device object
+ *          2.1) Set handler methods for the device, in the device object
+ *      3) Create a symlink to device, into the win32 ( or dos ) namespace
+ * 
+ *      4) Use PsSetCreateProcessNotifyRoutineEx to register notification callbacks to process creation
+ * 
+ *      5) If any of above fails,
+ *          5.1) Unregister call back for process creation
+ *          5.2) Delete symlink and device
+ * @param DriverObject 
+ * @param RegistryPath 
+ * @return NTSTATUS 
+ */
 
-NTSTATUS
-DriverEntry (
-    _In_ PDRIVER_OBJECT  DriverObject,
-    _In_ PUNICODE_STRING RegistryPath
-)
+NTSTATUS DriverEntry ( _In_ PDRIVER_OBJECT  DriverObject, _In_ PUNICODE_STRING RegistryPath )
 {
     NTSTATUS Status;
     UNICODE_STRING NtDeviceName = RTL_CONSTANT_STRING (TD_NT_DEVICE_NAME);
@@ -239,6 +225,11 @@ Exit:
 //
 //     TdDeviceUnload
 //
+//          1) Unregister process notify routines.
+//          2) remove filtering and remove any OB callbacks, using TdDeleteProtectNameCallback
+//          3) Delete the link from our device name to a name in the Win32 namespace.
+//          4) Delete our device object.
+//
 // Description:
 //
 //     This function handles driver unloading. All this driver needs to do 
@@ -246,14 +237,10 @@ Exit:
 //     device name and the Win32 visible name.
 //
 
-VOID
-TdDeviceUnload (
-    _In_ PDRIVER_OBJECT DriverObject
-)
+VOID TdDeviceUnload ( _In_ PDRIVER_OBJECT DriverObject )
 {
     NTSTATUS Status = STATUS_SUCCESS;
     UNICODE_STRING DosDevicesLinkName = RTL_CONSTANT_STRING (TD_DOS_DEVICES_LINK_NAME);
-
     DbgPrintEx (DPFLTR_IHVDRIVER_ID, DPFLTR_TRACE_LEVEL, "ObCallbackTest: TdDeviceUnload\n");
 
     //
@@ -262,13 +249,8 @@ TdDeviceUnload (
 
     if (TdProcessNotifyRoutineSet2 == TRUE)
     {
-        Status = PsSetCreateProcessNotifyRoutineEx (
-            TdCreateProcessNotifyRoutine2,
-            TRUE
-        );
-
+        Status = PsSetCreateProcessNotifyRoutineEx (TdCreateProcessNotifyRoutine2, TRUE);
         TD_ASSERT (Status == STATUS_SUCCESS);
-
         TdProcessNotifyRoutineSet2 = FALSE;
     }
 
@@ -279,8 +261,8 @@ TdDeviceUnload (
 
     //
     // Delete the link from our device name to a name in the Win32 namespace.
+    // Delete our device object.
     //
-
     Status = IoDeleteSymbolicLink (&DosDevicesLinkName);
     if (Status != STATUS_INSUFFICIENT_RESOURCES) {
         //
@@ -290,32 +272,18 @@ TdDeviceUnload (
         TD_ASSERT (NT_SUCCESS (Status));
 
     }
-
-
-    //
-    // Delete our device object.
-    //
-
     IoDeleteDevice (DriverObject->DeviceObject);
 }
 
-//
-// Function:
-//
-//     TdDeviceCreate
-//
-// Description:
-//
-//     This function handles the 'create' irp.
-//
+/**
+ * @brief TdDeviceIrpReset
+ * 
+ * @param DeviceObject 
+ * @param Irp 
+ * @return NTSTATUS 
+ */
 
-
-NTSTATUS
-TdDeviceCreate (
-    IN PDEVICE_OBJECT  DeviceObject,
-    IN PIRP  Irp
-)
-{
+NTSTATUS TdDeviceIrpReset (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp){
     UNREFERENCED_PARAMETER (DeviceObject);
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -325,64 +293,32 @@ TdDeviceCreate (
     return STATUS_SUCCESS;
 }
 
-//
-// Function:
-//
-//     TdDeviceClose
-//
-// Description:
-//
-//     This function handles the 'close' irp.
-//
+/**
+ * @brief 
+ * 
+ *      TdDeviceCreate: This function handles the 'create' irp.
+ *      TdDeviceClose: This function handles the 'close' irp.
+ *      TdDeviceCleanup: This function handles the 'cleanup' irp.
+ * 
+ * @param DeviceObject 
+ * @param Irp 
+ * @return NTSTATUS 
+ */
 
-NTSTATUS
-TdDeviceClose (
-    IN PDEVICE_OBJECT  DeviceObject,
-    IN PIRP  Irp
-)
-{
-    UNREFERENCED_PARAMETER (DeviceObject);
-
-    Irp->IoStatus.Status = STATUS_SUCCESS;
-    Irp->IoStatus.Information = 0;
-    IoCompleteRequest (Irp, IO_NO_INCREMENT);
-
-    return STATUS_SUCCESS;
+NTSTATUS TdDeviceCreate (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp) {
+    return TdDeviceIrpReset(DeviceObject, Irp);
 }
 
-//
-// Function:
-//
-//     TdDeviceCleanup
-//
-// Description:
-//
-//     This function handles the 'cleanup' irp.
-//
-
-NTSTATUS
-TdDeviceCleanup (
-    IN PDEVICE_OBJECT  DeviceObject,
-    IN PIRP  Irp
-)
-{
-    UNREFERENCED_PARAMETER (DeviceObject);
-
-    Irp->IoStatus.Status = STATUS_SUCCESS;
-    Irp->IoStatus.Information = 0;
-    IoCompleteRequest (Irp, IO_NO_INCREMENT);
-
-    return STATUS_SUCCESS;
+NTSTATUS TdDeviceClose (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp) {
+    return TdDeviceIrpReset(DeviceObject, Irp);
 }
 
-//
+NTSTATUS TdDeviceCleanup (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp) {
+    return TdDeviceIrpReset(DeviceObject, Irp);
+}
+
 // TdControlProtectName
-//
-
-NTSTATUS TdControlProtectName (
-    IN PDEVICE_OBJECT  DeviceObject,
-    IN PIRP  Irp
-)
+NTSTATUS TdControlProtectName (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp)
 {
     NTSTATUS Status = STATUS_SUCCESS;
     PIO_STACK_LOCATION IrpStack = NULL;
@@ -432,14 +368,8 @@ Exit:
     return Status;
 }
 
-//
 // TdControlUnprotect
-//
-
-NTSTATUS TdControlUnprotect (
-    IN PDEVICE_OBJECT  DeviceObject,
-    IN PIRP  Irp
-)
+NTSTATUS TdControlUnprotect (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp)
 {
     NTSTATUS Status = STATUS_SUCCESS;
     // PIO_STACK_LOCATION IrpStack = NULL;
@@ -471,22 +401,8 @@ NTSTATUS TdControlUnprotect (
     return Status;
 }
 
-
-//
-// Function:
-//
-//     TdDeviceControl
-//
-// Description:
-//
-//     This function handles 'control' irp.
-//
-
-NTSTATUS
-TdDeviceControl (
-    IN PDEVICE_OBJECT  DeviceObject,
-    IN PIRP  Irp
-)
+// Function: TdDeviceControl - This function handles 'control' irp.
+NTSTATUS TdDeviceControl (IN PDEVICE_OBJECT  DeviceObject, IN PIRP  Irp)
 {
     PIO_STACK_LOCATION IrpStack;
     ULONG Ioctl;
