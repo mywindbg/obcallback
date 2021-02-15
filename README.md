@@ -1,3 +1,5 @@
+![Screenshot](https://raw.githubusercontent.com/mywindbg/obcallback/master/Screenshot%202021-02-15%20at%2010.01.31.png)
+
 ---
 page_type: sample
 description: "Demonstrates the use of registered callbacks for process protection."
