@@ -1,15 +1,5 @@
 /*++
-
-Module Name:
-
-    util.c
-
-Notice:
-    Use this sample code at your own risk; there is no support from Microsoft for the sample code.
-    In addition, this sample code is licensed to you under the terms of the Microsoft Public License
-    (http://www.microsoft.com/opensource/licenses.mspx)
-
-
+Module Name: util.c
 --*/
 
 #include "pch.h"
@@ -52,6 +42,16 @@ void TdSetCallContext (
     PreInfo->CallContext = CallContext;
 }
 
+/**
+ * @brief TdCheckAndFreeCallContext
+ *
+ *      1) Get CallContext from PostInfo
+ *      2) Assert CallbackRegistration, Operation, Object and ObjectType are same b/w PostInfo and CallContext
+ *      3) call ExFreePoolWithTag with the CallContext
+ *
+ * @param PostInfo - The OB_POST_OPERATION_INFORMATION structure provides information about a process or thread handle operation to an ObjectPostCallback routine.
+ * @param CallbackRegistration
+ */
 void TdCheckAndFreeCallContext (
     _Inout_ POB_POST_OPERATION_INFORMATION PostInfo,
     _In_ PTD_CALLBACK_REGISTRATION CallbackRegistration
@@ -63,9 +63,16 @@ void TdCheckAndFreeCallContext (
     {
         TD_ASSERT (CallContext->CallbackRegistration == CallbackRegistration);
 
-        TD_ASSERT (CallContext->Operation  == PostInfo->Operation);
-        TD_ASSERT (CallContext->Object     == PostInfo->Object);
-        TD_ASSERT (CallContext->ObjectType == PostInfo->ObjectType);
+    TD_ASSERT (CallContext->Operation  == PostInfo->Operation); // The type of handle operation. This member might be one of the following values:
+    TD_ASSERT (CallContext->Object     == PostInfo->Object);    // A pointer to the process or thread object that is the target of the handle operation.
+    TD_ASSERT (CallContext->ObjectType == PostInfo->ObjectType);// A pointer to the object type of the object. This type can be PsProcessType for a process or PsThreadType for a thread.
+
+    /**
+     * @brief Deallocates a block of pool memory allocated with the specified tag.
+     *
+     *  1) Specifies the beginning address of a block of pool memory allocated by either ExAllocatePoolWithTag or ExAllocatePoolWithQuotaTag.
+     *  2) Specifies the tag value passed to ExAllocatePoolWithTag or ExAllocatePoolWithQuotaTag when the block of memory was originally allocated.
+     */
 
         ExFreePoolWithTag (CallContext, TD_CALL_CONTEXT_TAG);
     }
