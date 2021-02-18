@@ -1,4 +1,4 @@
-import os  
+import os
 import subprocess
 import shutil
 import argparse
@@ -11,11 +11,11 @@ class Paths:
     @staticmethod
     def MSBuild():
         return os.path.normcase("C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe")
-    
+
     @staticmethod
     def OBCallBackBasePath():
         return os.path.normcase("//vmware-host/Shared Folders/SharedFolder/obcallback")
-    
+
     @staticmethod
     def OBCallBackSln():
         return os.path.normcase(Paths.OBCallBackBasePath() + "/obcallback.sln")
@@ -45,7 +45,7 @@ def Run(command, cmd_args=[]):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, choices=["build", "clean", "install", "uninstall", "deprotect", "reject"], default="build")
+    parser.add_argument('--task', type=str, choices=["build", "clean", "install", "uninstall", "deprotect", "name", "reject"], default="build")
     parser.add_argument('--process', type=str, default="notepad", required=False)
     args = parser.parse_args()
     print("Task => {}".format(args.task))
@@ -62,5 +62,7 @@ if __name__ == "__main__":
         Run("-uninstall")
     elif args.task == "deprotect":
         Run("-deprotect")
+    elif args.task == "name":
+        Run("-name", [args.process])
     elif args.task == "reject":
         Run("-reject", [args.process])
